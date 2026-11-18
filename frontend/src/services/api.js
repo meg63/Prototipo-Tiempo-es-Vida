@@ -176,6 +176,12 @@ export const api = {
     list() {
       return request('/recomendaciones/');
     },
+    generate(payload = {}) {
+      return request('/recomendaciones/generar/', {
+        method: 'POST',
+        body: payload,
+      });
+    },
     updateClarity(id, respuesta_claridad) {
       return request(`/recomendaciones/${id}/claridad/`, {
         method: 'PATCH',

@@ -274,6 +274,21 @@ class PerfilCardiovascular(models.Model):
     sintomas_ultimo_mes = models.JSONField(default=list)
     hora_despertar = models.TimeField(null=True, blank=True)
     hora_acostarse = models.TimeField(null=True, blank=True)
+    # Datos de seguridad y contexto requeridos por R-01, R-10, R-12, R-15 y R-16.
+    # None significa "no informado"; no debe tratarse como False.
+    parq_completado = models.BooleanField(null=True, blank=True, default=None)
+    parq_requiere_revision = models.BooleanField(null=True, blank=True, default=None)
+    ejercicio_supervisado_indicado = models.BooleanField(null=True, blank=True, default=None)
+
+    restriccion_liquidos_medica = models.BooleanField(null=True, blank=True, default=None)
+    insuficiencia_cardiaca = models.BooleanField(null=True, blank=True, default=None)
+    enfermedad_renal = models.BooleanField(null=True, blank=True, default=None)
+    embarazo = models.BooleanField(null=True, blank=True, default=None)
+
+    poco_acceso_fruta = models.BooleanField(null=True, blank=True, default=None)
+    interes_hidratacion = models.BooleanField(null=True, blank=True, default=None)
+    quiere_dejar_fumar = models.BooleanField(null=True, blank=True, default=None)
+
 
     creado_en = models.DateTimeField(default=timezone.now, editable=False)
     actualizado_en = models.DateTimeField(default=timezone.now)
@@ -456,6 +471,9 @@ class RegistroDiario(models.Model):
     hora_acostarse_anoche = models.CharField(
         max_length=20, choices=HoraAcostarseEncuesta.choices, null=True, blank=True
     )
+     # Hora real para medir la variabilidad diaria de la hora de acostarse (R-06/SU-02).
+    hora_acostarse_real = models.TimeField(null=True, blank=True)
+
     manana_completada_en = models.DateTimeField(null=True, blank=True)
 
     # Encuesta de la noche

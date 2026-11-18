@@ -14,6 +14,8 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from .services.rules_engine import evaluar_habitos_y_sintomas
+
 
 from .models import (
     CasosECG,
@@ -172,14 +174,22 @@ class PerfilCardiovascularAPIView(VistaAutenticada):
         serializer = PerfilCardiovascularSerializer(instance=perfil, data=request.data)
         serializer.is_valid(raise_exception=True)
         perfil = serializer.save(paciente=request.user)
-        return Response(PerfilCardiovascularSerializer(perfil).data, status=status.HTTP_200_OK)
+        motor = evaluar_habitos_y_sintomas(request.user)
+        data = dict(PerfilCardiovascularSerializer(perfil).data)
+        data["motor_recomendaciones"] = motor
+        return Response(data, status=status.HTTP_200_OK)
+
 
     def patch(self, request):
         perfil = get_object_or_404(PerfilCardiovascular, paciente=request.user)
         serializer = PerfilCardiovascularSerializer(instance=perfil, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         perfil = serializer.save()
-        return Response(PerfilCardiovascularSerializer(perfil).data)
+        motor = evaluar_habitos_y_sintomas(request.user)
+        data = dict(PerfilCardiovascularSerializer(perfil).data)
+        data["motor_recomendaciones"] = motor
+        return Response(data)
+
 
 
 # -----------------------------------------------------------------------------
@@ -203,9 +213,10 @@ class EncuestaMananaAPIView(VistaAutenticada):
                 setattr(registro, campo, valor)
             registro.manana_completada_en = timezone.now()
             registro.save()
+        motor = evaluar_habitos_y_sintomas(request.user)
 
         return Response(
-            {"detail": "Encuesta de la mañana guardada.", "registro": RegistroDiarioSerializer(registro).data},
+            {"detail": "Encuesta de la mañana guardada.", "registro": RegistroDiarioSerializer(registro).data,"motor_recomendaciones":motor},
             status=status.HTTP_200_OK,
         )
 
@@ -227,6 +238,7 @@ class EncuestaNocheAPIView(VistaAutenticada):
                 setattr(registro, campo, valor)
             registro.noche_completada_en = timezone.now()
             registro.save()
+        motor = evaluar_habitos_y_sintomas(request.user)
 
         return Response(
             {
@@ -237,6 +249,7 @@ class EncuestaNocheAPIView(VistaAutenticada):
                     if registro.sintoma_hoy else None
                 ),
                 "registro": RegistroDiarioSerializer(registro).data,
+                "motor_recomendaciones": motor,
             },
             status=status.HTTP_200_OK,
         )
@@ -313,7 +326,12 @@ class EvaluacionesPeriodicasAPIView(VistaAutenticada):
         serializer = EvaluacionPeriodicaSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         evaluacion = serializer.save(paciente=request.user)
-        return Response(EvaluacionPeriodicaSerializer(evaluacion).data, status=status.HTTP_201_CREATED)
+        motor = evaluar_habitos_y_sintomas(request.user)
+
+        data = dict(EvaluacionPeriodicaSerializer(evaluacion).data)
+        data["motor_recomendaciones"] = motor
+        return Response(data, status=status.HTTP_201_CREATED)
+
 
 
 # -----------------------------------------------------------------------------
@@ -359,6 +377,31 @@ class CatalogoRecomendacionesAPIView(VistaAutenticada):
         if categoria:
             queryset = queryset.filter(categoria=categoria)
         return Response(RecomendacionCatalogoSerializer(queryset, many=True).data)
+    
+class GenerarRecomendacionesAPIView(VistaAutenticada):
+    permission_classes = [IsAuthenticated, EsPaciente, TieneConsentimiento]
+
+    def post(self, request):
+        solicitar_ayuda = request.data.get("necesito_ayuda_ahora", False)
+        texto_libre = request.data.get("texto_libre", "")
+
+        if not isinstance(solicitar_ayuda, bool):
+            return Response(
+                {"necesito_ayuda_ahora": "Debe ser true o false."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(texto_libre, str) or len(texto_libre) > 1000:
+            return Response(
+                {"texto_libre": "Debe ser texto de máximo 1000 caracteres."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        resultado = evaluar_habitos_y_sintomas(
+            request.user,
+            necesito_ayuda_ahora=solicitar_ayuda,
+            texto_libre=texto_libre,
+        )
+        return Response(resultado, status=status.HTTP_200_OK)
 
 
 class RecomendacionesMostradasAPIView(VistaAutenticada):

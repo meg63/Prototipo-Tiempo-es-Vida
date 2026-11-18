@@ -31,7 +31,11 @@ urlpatterns = [
     path("catalogo-recomendaciones/", views.CatalogoRecomendacionesAPIView.as_view(), name="api-catalogo-recomendaciones"),
     path("recomendaciones/", views.RecomendacionesMostradasAPIView.as_view(), name="api-recomendaciones"),
     path("recomendaciones/mostrar/", views.RecomendacionesMostradasAPIView.as_view(), name="api-recomendacion-mostrar"),
+    path("recomendaciones/generar/",views.GenerarRecomendacionesAPIView.as_view(),name="api-recomendaciones-generar",),
     path("recomendaciones/<int:pk>/claridad/", views.ClaridadRecomendacionAPIView.as_view(), name="api-recomendacion-claridad"),
+   
+
+
 
     # Panel profesional
     path("profesional/casos/", views.CasosProfesionalListaAPIView.as_view(), name="api-profesional-casos"),

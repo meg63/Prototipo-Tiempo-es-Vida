@@ -1,4 +1,6 @@
-import { NavLink, Outlet, Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { NavLink, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { api, getStoredUser } from '../services/api';
 
 const patientNavigation = [
   { to: '/inicio', label: 'Inicio', symbol: '⌂' },
@@ -8,7 +10,38 @@ const patientNavigation = [
   { to: '/perfil', label: 'Perfil', symbol: '○' },
 ];
 
+function LogoutButton({ professional = false }) {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogout() {
+    if (loading) return;
+    setLoading(true);
+    try {
+      await api.auth.logout();
+    } catch {
+      // api.auth.logout clears the local token in a finally block even if the server is unreachable.
+    } finally {
+      navigate('/', { replace: true });
+    }
+  }
+
+  return (
+    <button
+      type="button"
+      className={professional ? 'tv-logout-button tv-logout-professional' : 'tv-logout-button'}
+      onClick={handleLogout}
+      disabled={loading}
+      aria-label="Cerrar sesión"
+    >
+      <span aria-hidden="true">↪</span>
+      {loading ? 'Saliendo…' : 'Cerrar sesión'}
+    </button>
+  );
+}
+
 export function PatientLayout() {
+  const user = getStoredUser();
   return (
     <div className="tv-app">
       <header className="tv-header">
@@ -19,7 +52,10 @@ export function PatientLayout() {
             <small>TIEMPO ES VIDA</small>
           </span>
         </Link>
-        <span className="tv-header-tag">Mi salud cardiovascular</span>
+        <div className="tv-header-actions">
+          <span className="tv-header-tag">{user?.nombre ? `Hola, ${user.nombre}` : 'Mi salud cardiovascular'}</span>
+          <LogoutButton />
+        </div>
       </header>
 
       <main className="tv-main">
@@ -41,6 +77,7 @@ export function PatientLayout() {
 export function ProfessionalLayout() {
   const location = useLocation();
   const detailActive = location.pathname.includes('/casos/');
+  const user = getStoredUser();
 
   return (
     <div className="tv-professional-shell">
@@ -49,12 +86,13 @@ export function ProfessionalLayout() {
           <span className="tv-brand-symbol">♥</span>
           <span><strong>CuidaCor</strong><small>Panel profesional</small></span>
         </Link>
+        <div className="tv-professional-user">{user?.nombre || user?.email || 'Profesional'}</div>
         <nav className="tv-professional-nav">
           <NavLink to="/profesional/casos" className={({ isActive }) => `tv-professional-nav-link${isActive && !detailActive ? ' is-active' : ''}`}>
             <span aria-hidden="true">▤</span> Casos
           </NavLink>
           {detailActive && <span className="tv-professional-nav-current">Detalle del caso</span>}
-          <Link to="/" className="tv-professional-nav-link tv-professional-exit">Cerrar sesión</Link>
+          <LogoutButton professional />
         </nav>
       </aside>
       <main className="tv-professional-main"><Outlet /></main>
@@ -165,9 +203,9 @@ export function PrimaryButton({ children, type = 'button', onClick, disabled = f
   return <button type={type} onClick={onClick} disabled={disabled} className="tv-button tv-button-primary">{children}</button>;
 }
 
-export function SecondaryButton({ children, type = 'button', onClick, to }) {
+export function SecondaryButton({ children, type = 'button', onClick, to, disabled = false }) {
   if (to) return <Link to={to} className="tv-button tv-button-secondary">{children}</Link>;
-  return <button type={type} onClick={onClick} className="tv-button tv-button-secondary">{children}</button>;
+  return <button type={type} onClick={onClick} disabled={disabled} className="tv-button tv-button-secondary">{children}</button>;
 }
 
 export function InfoNotice({ children, tone = 'info' }) {

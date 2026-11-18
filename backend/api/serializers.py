@@ -122,7 +122,12 @@ class PerfilCardiovascularSerializer(serializers.ModelSerializer):
     class Meta:
         model = PerfilCardiovascular
         exclude = ("paciente",)
-        read_only_fields = ("id", "imc", "creado_en", "actualizado_en")
+        read_only_fields = (
+        "id", "imc", "creado_en", "actualizado_en",
+        "parq_completado", "parq_requiere_revision",
+        "ejercicio_supervisado_indicado",
+    )
+
 
     def _validar_lista(self, value, opciones, nombre_campo, opcion_ninguna):
         if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
@@ -173,6 +178,8 @@ class EncuestaMananaSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+    hora_acostarse_real = serializers.TimeField(required=False, allow_null=True)
+
 
 
 class EncuestaNocheSerializer(serializers.Serializer):

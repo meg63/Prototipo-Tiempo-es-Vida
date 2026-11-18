@@ -288,28 +288,102 @@ export function HistoryPage() {
   );
 }
 
+function EngineAlert({ alert }) {
+  const isMentalHealth = alert.tipo === 'ayuda_salud_mental' || alert.regla === 'R-13';
+  const isClinical = alert.tipo === 'precaucion_clinica' || alert.regla === 'R-16';
+
+  return (
+    <section
+      className={`tv-engine-alert${isMentalHealth ? ' tv-engine-alert-support' : ''}${isClinical ? ' tv-engine-alert-clinical' : ''}`}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="tv-engine-alert-heading">
+        <strong>{isMentalHealth ? 'Orientación de apoyo' : isClinical ? 'Precaución importante' : 'Recomendación de seguridad'}</strong>
+        <span>{alert.regla}</span>
+      </div>
+      <p>{alert.mensaje}</p>
+      {alert.motivo && <small>{alert.motivo}</small>}
+      {isMentalHealth && (
+        <a className="tv-button tv-button-secondary tv-engine-call-link" href="tel:192">
+          Llamar al 192 · opción 4
+        </a>
+      )}
+    </section>
+  );
+}
+
+function EngineMessage({ message }) {
+  const isPositive = message.tipo === 'refuerzo_positivo_pendiente_validacion';
+  return (
+    <section className={`tv-engine-message${isPositive ? ' tv-engine-message-positive' : ''}`} role="status">
+      <span className="tv-engine-message-code">{message.regla}</span>
+      <p>{message.mensaje}</p>
+    </section>
+  );
+}
+
 export function RecommendationsPage() {
   const [recommendations, setRecommendations] = useState([]);
+  const [alerts, setAlerts] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [windowInfo, setWindowInfo] = useState(null);
+  const [evaluatedAt, setEvaluatedAt] = useState('');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingId, setLoadingId] = useState(null);
   const [error, setError] = useState('');
-  const [showHelp, setShowHelp] = useState(false);
+  const [helpLoading, setHelpLoading] = useState(false);
+  const [helpError, setHelpError] = useState('');
+
+  async function evaluateRecommendations({ help = false, initial = false } = {}) {
+    if (initial) setLoading(true);
+    else if (help) setHelpLoading(true);
+    else setRefreshing(true);
+    setError('');
+    setHelpError('');
+
+    try {
+      const result = await api.recommendations.generate(
+        help ? { necesito_ayuda_ahora: true } : {}
+      );
+
+      const generated = Array.isArray(result?.recomendaciones_generadas)
+        ? result.recomendaciones_generadas
+        : [];
+
+      setRecommendations(generated);
+      setAlerts(Array.isArray(result?.alertas) ? result.alertas : []);
+      setMessages(Array.isArray(result?.mensajes) ? result.mensajes : []);
+      setWindowInfo(result?.ventana || null);
+      setEvaluatedAt(result?.fecha_evaluacion || '');
+    } catch (requestError) {
+      if (help) setHelpError(getApiErrorMessage(requestError));
+      else setError(getApiErrorMessage(requestError));
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      setHelpLoading(false);
+    }
+  }
 
   useEffect(() => {
-    let active = true;
-    api.recommendations.list()
-      .then((data) => { if (active) setRecommendations(Array.isArray(data) ? data : []); })
-      .catch((requestError) => { if (active) setError(getApiErrorMessage(requestError)); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    evaluateRecommendations({ initial: true });
+    // Evaluate once when the page opens. Subsequent updates are user-triggered.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleClarity(recommendationId, label) {
     setError('');
     setLoadingId(recommendationId);
     try {
-      const updated = await api.recommendations.updateClarity(recommendationId, toClarityCode(label));
-      setRecommendations((current) => current.map((item) => item.id === recommendationId ? updated : item));
+      const updated = await api.recommendations.updateClarity(
+        recommendationId,
+        toClarityCode(label)
+      );
+      setRecommendations((current) => current.map((item) => (
+        item.id === recommendationId ? updated : item
+      )));
     } catch (requestError) {
       setError(getApiErrorMessage(requestError));
     } finally {
@@ -317,41 +391,125 @@ export function RecommendationsPage() {
     }
   }
 
+  function formatEvaluationDate(value) {
+    if (!value) return '';
+    const date = new Date(`${value}T00:00:00`);
+    return new Intl.DateTimeFormat('es-CO', { dateStyle: 'long' }).format(date);
+  }
+
+  const hasUrgentSupportAlert = alerts.some((alert) => (
+    alert.tipo === 'ayuda_salud_mental' || alert.regla === 'R-13'
+  ));
+
   return (
     <>
-      <PageHeading title="Sus recomendaciones" description="Orientaciones preventivas relacionadas con hábitos registrados." />
-      <InfoNotice>Las recomendaciones que aparecen aquí son las que el backend ha registrado como mostradas a su cuenta. Sus respuestas de claridad se guardan individualmente.</InfoNotice>
-      {loading && <InfoNotice>Cargando recomendaciones…</InfoNotice>}
-      {error && <InfoNotice tone="danger">{error}</InfoNotice>}
-      {!loading && !error && recommendations.length === 0 && (
-        <EmptyState title="Todavía no hay recomendaciones" description="Cuando el motor de reglas genere recomendaciones para sus registros, aparecerán en esta sección. No se muestran consejos de ejemplo como si fueran personalizados." action={<SecondaryButton to="/habitos">Registrar hábitos</SecondaryButton>} />
+      <PageHeading
+        eyebrow="ORIENTACIÓN PREVENTIVA"
+        title="Sus recomendaciones"
+        description="Orientaciones generadas a partir de la información que ha registrado. No son diagnósticos ni sustituyen una consulta médica."
+        action={(
+          <SecondaryButton onClick={() => evaluateRecommendations()}>
+            {refreshing ? 'Actualizando…' : 'Actualizar recomendaciones'}
+          </SecondaryButton>
+        )}
+      />
+
+      <InfoNotice>
+        El motor revisa los registros disponibles y aplica las reglas preventivas configuradas. Algunas reglas necesitan al menos 3 días con datos válidos dentro de una ventana de 7 días; otras requieren más observaciones o una evaluación periódica.
+      </InfoNotice>
+
+      {evaluatedAt && (
+        <p className="tv-engine-evaluation-date">
+          Última evaluación: {formatEvaluationDate(evaluatedAt)}
+          {windowInfo?.minimo_registros_diarios
+            ? ` · Mínimo general: ${windowInfo.minimo_registros_diarios} registros válidos`
+            : ''}
+        </p>
       )}
-      <div className="tv-recommendation-list">
-        {recommendations.map((recommendation) => (
-          <SectionCard key={recommendation.id} className="tv-recommendation-card">
-            <div className="tv-recommendation-topline"><span className="tv-category-pill">{displayRecommendationCategory(recommendation.categoria)}</span><span className="tv-recommendation-id">{recommendation.codigo}</span></div>
-            <p className="tv-situation-label">Situación identificada</p>
-            <p className="tv-situation-text">{recommendation.situacion_identificada}</p>
-            <p className="tv-recommendation-text">{recommendation.texto_recomendacion}</p>
-            <ChoiceField
-              label="¿Le resultó clara esta recomendación?"
-              name={`clarity-${recommendation.id}`}
-              value={fromClarityCode(recommendation.respuesta_claridad)}
-              onChange={(value) => handleClarity(recommendation.id, value)}
-              options={['Sí', 'Más o menos', 'No']}
-              columns={3}
-            />
-            {loadingId === recommendation.id && <p className="tv-answer-feedback">Guardando respuesta…</p>}
-            {recommendation.respuesta_claridad && <p className="tv-answer-feedback">Respuesta registrada: {fromClarityCode(recommendation.respuesta_claridad)}.</p>}
-          </SectionCard>
-        ))}
-      </div>
-      <InfoNotice tone="warning">Estas recomendaciones no sustituyen una consulta médica.</InfoNotice>
-      <SectionCard>
+
+      {loading && <InfoNotice>Cargando y evaluando sus recomendaciones…</InfoNotice>}
+      {error && <InfoNotice tone="danger">{error}</InfoNotice>}
+
+      {!loading && alerts.length > 0 && (
+        <div className="tv-engine-alert-list" aria-label="Alertas y precauciones">
+          {alerts.map((alert, index) => (
+            <EngineAlert key={`${alert.regla || 'alerta'}-${index}`} alert={alert} />
+          ))}
+        </div>
+      )}
+
+      {!loading && messages.length > 0 && (
+        <div className="tv-engine-message-list" aria-label="Mensajes preventivos">
+          {messages.map((message, index) => (
+            <EngineMessage key={`${message.regla || 'mensaje'}-${index}`} message={message} />
+          ))}
+        </div>
+      )}
+
+      {!loading && !error && recommendations.length === 0 && !hasUrgentSupportAlert && (
+        <EmptyState
+          title="Aún no hay recomendaciones personalizadas"
+          description="Continúe registrando sus hábitos. Algunas reglas necesitan al menos tres días con mediciones válidas y otras requieren condiciones específicas. El sistema no mostrará consejos como si fueran personalizados cuando todavía no hay información suficiente."
+          action={<SecondaryButton to="/habitos">Registrar hábitos</SecondaryButton>}
+        />
+      )}
+
+      {!loading && recommendations.length > 0 && (
+        <>
+          <div className="tv-engine-results-heading">
+            <div>
+              <p className="tv-eyebrow">RESULTADOS DEL MOTOR</p>
+              <h2>Orientaciones para usted</h2>
+            </div>
+            <span className="tv-engine-count">{recommendations.length} {recommendations.length === 1 ? 'recomendación' : 'recomendaciones'}</span>
+          </div>
+          <div className="tv-recommendation-list">
+            {recommendations.map((recommendation) => (
+              <SectionCard key={recommendation.id} className="tv-recommendation-card">
+                <div className="tv-recommendation-topline">
+                  <span className="tv-category-pill">{displayRecommendationCategory(recommendation.categoria)}</span>
+                  <span className="tv-recommendation-id">{recommendation.codigo}</span>
+                </div>
+                <p className="tv-situation-label">Situación identificada</p>
+                <p className="tv-situation-text">{recommendation.situacion_identificada}</p>
+                <p className="tv-recommendation-text">{recommendation.texto_recomendacion}</p>
+                <div className="tv-engine-rule-reference">
+                  Regla aplicada: <strong>{recommendation.regla_codigo}</strong>
+                </div>
+                <ChoiceField
+                  label="¿Le resultó clara esta recomendación?"
+                  name={`clarity-${recommendation.id}`}
+                  value={fromClarityCode(recommendation.respuesta_claridad)}
+                  onChange={(value) => handleClarity(recommendation.id, value)}
+                  options={['Sí', 'Más o menos', 'No']}
+                  columns={3}
+                />
+                {loadingId === recommendation.id && <p className="tv-answer-feedback">Guardando respuesta…</p>}
+                {recommendation.respuesta_claridad && loadingId !== recommendation.id && (
+                  <p className="tv-answer-feedback">Respuesta registrada: {fromClarityCode(recommendation.respuesta_claridad)}.</p>
+                )}
+              </SectionCard>
+            ))}
+          </div>
+        </>
+      )}
+
+      <InfoNotice tone="warning">
+        Las recomendaciones son orientaciones preventivas basadas en los datos registrados. No sustituyen la valoración de un profesional de salud.
+      </InfoNotice>
+
+      <SectionCard className="tv-help-card">
         <h2>¿Necesita apoyo emocional urgente?</h2>
-        <p className="tv-muted">La base de conocimiento contempla una ruta de ayuda para situaciones de crisis de salud mental.</p>
-        <button className="tv-text-link" onClick={() => setShowHelp((current) => !current)}>{showHelp ? 'Ocultar información' : 'Necesito ayuda ahora'}</button>
-        {showHelp && <InfoNotice tone="danger">En Colombia, el documento indica la línea 192, opción 4, para teleorientación en salud mental. <a href="tel:192">Llamar al 192</a> y seleccionar la opción 4.</InfoNotice>}
+        <p className="tv-muted">Puede solicitar que la plataforma muestre la orientación de apoyo contemplada en la regla R-13.</p>
+        <button
+          type="button"
+          className="tv-button tv-button-secondary tv-help-action"
+          disabled={helpLoading}
+          onClick={() => evaluateRecommendations({ help: true })}
+        >
+          {helpLoading ? 'Consultando orientación…' : 'Necesito ayuda ahora'}
+        </button>
+        {helpError && <InfoNotice tone="danger">{helpError}</InfoNotice>}
       </SectionCard>
     </>
   );

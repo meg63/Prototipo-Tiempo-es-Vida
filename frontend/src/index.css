@@ -256,3 +256,189 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tv-process-step div { display: grid; gap: 5px; }
 .tv-process-step strong { font-size: 13px; }
 .tv-process-step p { margin: 0; color: var(--tv-muted); font-size: 12px; }
+
+/* --------------------------------------------------------------------------
+   Ajustes de integración visual del motor, botones turquesa y cierre de sesión
+   Agregar al final de frontend/src/index.css; no reemplaza los estilos previos.
+   -------------------------------------------------------------------------- */
+.tv-button-primary {
+  color: #fff;
+  background: var(--tv-turquoise);
+  box-shadow: 0 6px 15px rgba(28, 140, 129, .16);
+}
+.tv-button-primary:hover { background: var(--tv-turquoise-dark); }
+.tv-button-danger {
+  color: #fff;
+  background: var(--tv-turquoise-dark);
+  border-color: var(--tv-turquoise-dark);
+}
+.tv-icon-red {
+  color: var(--tv-turquoise-dark);
+  background: #E3F3EF;
+}
+.tv-header-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.tv-logout-button {
+  display: inline-flex;
+  min-height: 37px;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  color: var(--tv-turquoise-dark);
+  background: #F0F8F5;
+  border: 1px solid #B9DCD3;
+  border-radius: 999px;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.tv-logout-button:hover {
+  background: #E2F2ED;
+  border-color: var(--tv-turquoise);
+  transform: translateY(-1px);
+}
+.tv-logout-button:disabled { opacity: .6; cursor: wait; transform: none; }
+.tv-logout-button span { font-size: 15px; line-height: 1; }
+.tv-logout-professional {
+  width: 100%;
+  justify-content: flex-start;
+  margin-top: 20px;
+  padding: 12px 14px;
+  color: #fff;
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.25);
+  border-radius: 11px;
+}
+.tv-logout-professional:hover { color: #fff; background: rgba(255,255,255,.18); }
+.tv-professional-user {
+  margin-top: 22px;
+  color: rgba(255,255,255,.76);
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.tv-professional-exit { margin-top: 12px; }
+.tv-engine-evaluation-date {
+  margin: -3px 0 14px;
+  color: var(--tv-muted);
+  font-size: 11px;
+}
+.tv-engine-alert-list, .tv-engine-message-list {
+  display: grid;
+  gap: 10px;
+  margin: 15px 0;
+}
+.tv-engine-alert {
+  padding: 15px 17px;
+  color: #365D57;
+  background: #EFF8F5;
+  border: 1px solid #C9E4DB;
+  border-left: 5px solid var(--tv-turquoise);
+  border-radius: 14px;
+}
+.tv-engine-alert-support {
+  color: #674D24;
+  background: #FFF8E8;
+  border-color: #F0DDAE;
+  border-left-color: #C18B32;
+}
+.tv-engine-alert-clinical {
+  color: #365D57;
+  background: #F1F6F4;
+  border-color: #D6E5DF;
+  border-left-color: #648E82;
+}
+.tv-engine-alert-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+.tv-engine-alert-heading span {
+  flex: 0 0 auto;
+  padding: 4px 8px;
+  color: var(--tv-turquoise-dark);
+  background: rgba(255,255,255,.7);
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+}
+.tv-engine-alert p, .tv-engine-message p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.55;
+}
+.tv-engine-alert small {
+  display: block;
+  margin-top: 7px;
+  opacity: .85;
+  font-size: 11px;
+  line-height: 1.45;
+}
+.tv-engine-call-link {
+  width: auto;
+  margin-top: 12px;
+}
+.tv-engine-message {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 15px;
+  color: #365D57;
+  background: #F3F8F6;
+  border: 1px solid #DCEBE5;
+  border-radius: 13px;
+}
+.tv-engine-message-positive { background: #EAF6F0; border-color: #C8E5D4; }
+.tv-engine-message-code {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  color: var(--tv-turquoise-dark);
+  background: #fff;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+}
+.tv-engine-results-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 24px 0 13px;
+}
+.tv-engine-results-heading h2 { margin: 3px 0 0; font-size: 19px; }
+.tv-engine-count {
+  padding: 6px 10px;
+  color: var(--tv-turquoise-dark);
+  background: #E6F4F1;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.tv-engine-rule-reference {
+  margin: -2px 0 14px;
+  color: var(--tv-muted);
+  font-size: 10px;
+}
+.tv-engine-rule-reference strong { color: var(--tv-turquoise-dark); }
+.tv-help-card { margin-top: 18px; }
+.tv-help-action { width: auto; min-width: 190px; }
+
+@media (max-width: 640px) {
+  .tv-header-actions { gap: 7px; }
+  .tv-logout-button { min-height: 34px; padding: 7px 9px; font-size: 10px; }
+  .tv-header .tv-brand strong { font-size: 17px; }
+  .tv-engine-results-heading { align-items: flex-start; flex-direction: column; }
+  .tv-help-action { width: 100%; }
+  .tv-logout-professional { width: auto; margin: 0 0 0 auto; }
+  .tv-professional-user { display: none; }
+}

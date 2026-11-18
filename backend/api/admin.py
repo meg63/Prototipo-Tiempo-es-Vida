@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 
 from .models import CustomUser
+from .models import PerfilCardiovascular
+
 
 
 @admin.register(CustomUser)
@@ -60,6 +62,37 @@ class CustomUserAdmin(UserAdmin):
                 ),
             },
         ),
+    )
+
+    def has_module_permission(self, request):
+        return bool(request.user.is_active and request.user.is_superuser)
+
+    def has_view_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_superuser)
+
+    def has_add_permission(self, request):
+        return bool(request.user.is_active and request.user.is_superuser)
+
+    def has_change_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_superuser)
+
+    def has_delete_permission(self, request, obj=None):
+        return bool(request.user.is_active and request.user.is_superuser)
+@admin.register(PerfilCardiovascular)
+class PerfilCardiovascularAdmin(admin.ModelAdmin):
+    list_display = (
+        "paciente",
+        "parq_completado",
+        "parq_requiere_revision",
+        "ejercicio_supervisado_indicado",
+        "restriccion_liquidos_medica",
+    )
+    search_fields = ("paciente__email", "paciente__nombre", "paciente__codigo_participante")
+    list_filter = (
+        "parq_completado",
+        "parq_requiere_revision",
+        "restriccion_liquidos_medica",
+        "embarazo",
     )
 
     def has_module_permission(self, request):
