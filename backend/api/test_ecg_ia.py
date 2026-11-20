@@ -154,6 +154,38 @@ class CargaECGAPITests(TestCase):
         self.assertEqual(r.data["estado_procesamiento"], "ERROR")
         self.assertIn("100 Hz", r.data["mensaje_error"])
 
+    def test_senal_para_el_trazado(self):
+        senal_original = senal_sintetica(seed=3)
+        caso = self.subir(zip_wfdb(senal=senal_original)).data
+        r = self.client.get(f"/api/ecg/{caso['id']}/senal/")
+        self.assertEqual(r.status_code, status.HTTP_200_OK, r.data)
+        self.assertEqual(r.data["frecuencia_hz"], FS)
+        self.assertEqual(r.data["unidades"], "mV")
+        self.assertEqual(r.data["derivaciones"], list(ORDEN_DERIVACIONES))
+        mv = np.array(r.data["mv"])
+        self.assertEqual(mv.shape, (12, FS * 10))
+        # Cuantización WFDB de 16 bits (1 µV) + redondeo a 3 decimales.
+        np.testing.assert_allclose(mv, senal_original.T, atol=2e-3)
+
+    def test_senal_de_otro_paciente_no_es_visible(self):
+        caso = self.subir(zip_wfdb()).data
+        otro = CustomUser.objects.create_user(
+            username="otro@example.test", email="otro@example.test", password="Temporal-2026-Segura!",
+            nombre="Otro", codigo_participante="P-ECG-02", edad=60, rol=RolUsuario.PACIENTE,
+        )
+        Consentimiento.objects.create(paciente=otro, acepta_tratamiento_datos=True, acepta_piloto_no_clinico=True)
+        cliente = APIClient()
+        cliente.credentials(HTTP_AUTHORIZATION=f"Token {Token.objects.create(user=otro).key}")
+        self.assertEqual(cliente.get(f"/api/ecg/{caso['id']}/senal/").status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_senal_de_ecg_invalido_explica_el_motivo(self):
+        senal = senal_sintetica()
+        senal[:, 8] = 0.0
+        caso = self.subir(zip_wfdb(senal=senal)).data
+        r = self.client.get(f"/api/ecg/{caso['id']}/senal/")
+        self.assertEqual(r.status_code, status.HTTP_422_UNPROCESSABLE_ENTITY)
+        self.assertIn("V3", r.data["detail"])
+
     def test_zip_sin_dat_se_rechaza_sin_crear_caso(self):
         r = self.subir(zip_wfdb(incluir_dat=False))
         self.assertEqual(r.status_code, status.HTTP_400_BAD_REQUEST)

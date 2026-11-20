@@ -26,6 +26,7 @@ urlpatterns = [
     # ECG del paciente: guarda el .zip WFDB y ejecuta el modelo de IA (services/ecg_ia).
     path("ecg/", views.CasosECGPacienteAPIView.as_view(), name="api-ecg-lista-crear"),
     path("ecg/<int:pk>/", views.CasoECGDetallePacienteAPIView.as_view(), name="api-ecg-detalle"),
+    path("ecg/<int:pk>/senal/", views.CasoECGSenalPacienteAPIView.as_view(), name="api-ecg-senal"),
 
     # Recomendaciones
     path("catalogo-recomendaciones/", views.CatalogoRecomendacionesAPIView.as_view(), name="api-catalogo-recomendaciones"),

@@ -460,3 +460,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 /* Botón de llenado automático del perfil (solo desarrollo) */
 .tv-demo-fill { display: grid; gap: 6px; margin: 0 0 16px; padding: 12px; border: 1px dashed #A8C9C0; border-radius: 13px; background: #F8FCFA; }
+
+/* Trazado ECG en papel milimetrado (componente EcgTrace) */
+.tv-ecg-trace-scroll { overflow-x: auto; border: 1px solid var(--tv-line); border-radius: 13px; background: #FFFAF9; -webkit-overflow-scrolling: touch; }
+.tv-ecg-trace { display: block; width: 100%; min-width: 640px; --ecg-paper: #FFFAF9; --ecg-grid-minor: #F7DCDA; --ecg-grid-major: #EAACA8; --ecg-trace: var(--tv-ink); --ecg-label: var(--tv-muted); }
+.tv-ecg-trace-caption { margin: 8px 2px 0; color: var(--tv-muted); font-size: 11px; line-height: 1.5; }
+.tv-ecg-trace-hint { display: none; }
+@media (max-width: 700px) { .tv-ecg-trace-hint { display: inline; } }

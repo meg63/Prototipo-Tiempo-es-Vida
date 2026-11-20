@@ -196,6 +196,10 @@ export const api = {
     get(id) {
       return request(`/ecg/${encodeURIComponent(id)}/`);
     },
+    // Señal en mV (12 derivaciones x 1000 muestras) para dibujar el trazado.
+    signal(id) {
+      return request(`/ecg/${encodeURIComponent(id)}/senal/`);
+    },
     // Sube un .zip con el par WFDB (.hea + .dat). Django ejecuta el modelo en la misma
     // solicitud y devuelve el caso COMPLETADO o en ERROR con mensaje_error.
     upload({ file, casoAsignado }) {

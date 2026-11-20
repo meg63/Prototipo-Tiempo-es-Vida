@@ -199,6 +199,23 @@ def analizar_zip(archivo) -> ResultadoModelo:
     return resultado
 
 
+def leer_senal_zip(archivo) -> dict[str, Any]:
+    """Señal validada en mV para dibujar el trazado: 12 derivaciones en orden estándar.
+
+    Usa la misma lectura que el modelo, así el trazado corresponde a lo que se analizó.
+    """
+    fs = obtener_modelo().fs
+    with tempfile.TemporaryDirectory(prefix="ecg_") as tmp:
+        senal = leer_ecg(extraer_zip(archivo, Path(tmp)), fs)
+    return {
+        "frecuencia_hz": fs,
+        "unidades": "mV",
+        "derivaciones": list(ORDEN_DERIVACIONES),
+        # 3 decimales (1 µV) bastan para dibujar y reducen el JSON a ~80 KB.
+        "mv": np.round(senal.astype(np.float64), 3).tolist(),
+    }
+
+
 # -----------------------------------------------------------------------------
 # Integración con CasosECG
 # -----------------------------------------------------------------------------

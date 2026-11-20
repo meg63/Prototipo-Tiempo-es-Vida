@@ -11,6 +11,7 @@ import {
   SelectField,
   TextField,
 } from '../components/Shared';
+import EcgTrace from '../components/EcgTrace';
 import { api, getApiErrorMessage, getStoredUser } from '../services/api';
 import {
   displayHistoryValue,
@@ -650,6 +651,38 @@ function ecgSummary(rows) {
   return `El modelo marcó para revisión: ${names}.`;
 }
 
+// Trazado de 12 derivaciones del ECG analizado (la señal la entrega /api/ecg/<id>/senal/).
+function EcgTraceCard({ caseId }) {
+  const [trace, setTrace] = useState({ caseId: null, signal: null, error: '' });
+
+  useEffect(() => {
+    let active = true;
+    api.ecg.signal(caseId)
+      .then((signal) => { if (active) setTrace({ caseId, signal, error: '' }); })
+      .catch((error) => { if (active) setTrace({ caseId, signal: null, error: getApiErrorMessage(error) }); });
+    return () => { active = false; };
+  }, [caseId]);
+
+  const current = trace.caseId === caseId;
+  return (
+    <SectionCard>
+      <h2>Trazado del ECG</h2>
+      {!current && <p className="tv-muted">Cargando el trazado…</p>}
+      {current && trace.error && <InfoNotice tone="warning">No fue posible mostrar el trazado. {trace.error}</InfoNotice>}
+      {current && trace.signal && (
+        <>
+          <EcgTrace signal={trace.signal} />
+          <p className="tv-ecg-trace-caption">
+            Las 12 derivaciones en formato impreso estándar (2,5 s cada una) y abajo la derivación II durante los 10 segundos.
+            Cada cuadro grande mide 0,2 s de ancho y 0,5 mV de alto.
+            <span className="tv-ecg-trace-hint"> Deslice hacia los lados para ver todo el trazado.</span>
+          </p>
+        </>
+      )}
+    </SectionCard>
+  );
+}
+
 export function EcgResultPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -690,6 +723,7 @@ export function EcgResultPage() {
             <p className="tv-ecg-summary">{ecgSummary(rows)}</p>
             <p className="tv-muted">Cada categoría tiene un puntaje de 0 a 100 y una línea de alerta. Si el puntaje la alcanza, la categoría queda marcada. Un ECG puede tener varias categorías marcadas, o ninguna.</p>
           </SectionCard>
+          <EcgTraceCard caseId={caso.id} />
           <div className="tv-result-list">
             {rows.map((row) => {
               const score = Math.round((row.probabilidad ?? 0) * 100);

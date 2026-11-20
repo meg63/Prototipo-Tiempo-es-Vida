@@ -14,7 +14,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
-from .services.ecg_ia import procesar_caso
+from .services.ecg_ia import ErrorECG, ErrorPaquete, leer_senal_zip, procesar_caso
 from .services.rules_engine import evaluar_habitos_y_sintomas
 
 
@@ -366,6 +366,26 @@ class CasoECGDetallePacienteAPIView(VistaAutenticada):
     def get(self, request, pk):
         caso = get_object_or_404(CasosECG, pk=pk, paciente=request.user)
         return Response(ResultadoECGSerializer(caso, context={"request": request}).data)
+
+
+class CasoECGSenalPacienteAPIView(VistaAutenticada):
+    """Señal de 12 derivaciones (mV) del ECG del paciente, para dibujar el trazado."""
+
+    permission_classes = [IsAuthenticated, EsPaciente, TieneConsentimiento]
+
+    def get(self, request, pk):
+        caso = get_object_or_404(CasosECG, pk=pk, paciente=request.user)
+        try:
+            with caso.archivo_ecg.open("rb") as archivo:
+                senal = leer_senal_zip(archivo)
+        except (ErrorPaquete, ErrorECG) as exc:
+            return Response({"detail": exc.mensaje}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except FileNotFoundError:
+            return Response(
+                {"detail": "El archivo de este ECG ya no está disponible en el servidor."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(senal)
 
 
 # -----------------------------------------------------------------------------
