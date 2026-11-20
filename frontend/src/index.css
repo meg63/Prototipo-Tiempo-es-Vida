@@ -457,3 +457,6 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .tv-ecg-flag { padding: 4px 9px; border: 1px solid var(--tv-line); border-radius: 99px; color: var(--tv-muted); font-size: 10px; font-weight: 800; white-space: nowrap; }
 .tv-ecg-flag.is-flagged { border-color: var(--tv-turquoise-dark); color: var(--tv-turquoise-dark); background: var(--tv-mint); }
 .tv-ecg-meta { margin: 8px 2px 0; font-size: 11px; }
+
+/* Botón de llenado automático del perfil (solo desarrollo) */
+.tv-demo-fill { display: grid; gap: 6px; margin: 0 0 16px; padding: 12px; border: 1px dashed #A8C9C0; border-radius: 13px; background: #F8FCFA; }

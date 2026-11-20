@@ -220,11 +220,61 @@ const lastMonthSymptoms = [
   'Ninguno',
 ];
 
+// Opciones de cada pregunta de selección única. Las usan el formulario y el
+// generador de datos de prueba, así ambos aceptan exactamente los mismos valores.
+const profileChoiceOptions = {
+  medicamentos: ['Sí, todos los días', 'Sí, pero a veces se me olvidan', 'No'],
+  antecedentes: ['Sí', 'No', 'No sé'],
+  frutas: ['0 a 1', '2 a 4', '5 o más'],
+  sal: ['Casi nunca', 'Algunas veces por semana', 'Todos los días'],
+  bebidas: ['Casi nunca', '1 a 3 veces por semana', 'Todos los días'],
+  actividad: ['Menos de 60', 'Entre 60 y 149', '150 o más'],
+  sentado: ['Menos de 6', '6 a 8', 'Más de 8'],
+  sueno: ['Menos de 6', 'Entre 6 y 7', 'Entre 7 y 9', 'Más de 9'],
+  estres: ['Nunca o casi nunca', 'Algunos días', 'Casi todos los días'],
+  tabaquismo: ['Nunca he fumado', 'Lo dejé', 'Sí, ocasionalmente', 'Sí, todos los días'],
+  alcohol: ['Nunca', '1 a 2 veces', '3 o más'],
+};
+
 const emptyProfile = {
   peso: '', estatura: '', presion: '', condiciones: [], medicamentos: '', antecedentes: '',
   frutas: '', sal: '', bebidas: '', actividad: '', sentado: '', sueno: '', estres: '',
   tabaquismo: '', alcohol: '', sintomasAhora: [], sintomasMes: [], despertar: '', acostarse: '',
 };
+
+// Botón de llenado automático: solo en desarrollo (npm run dev) o con VITE_DEMO_TOOLS=true.
+const showDemoTools = import.meta.env.DEV || import.meta.env.VITE_DEMO_TOOLS === 'true';
+
+const pick = (options) => options[Math.floor(Math.random() * options.length)];
+const randomInt = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
+const randomTime = (startHour, endHour) => `${String(randomInt(startHour, endHour)).padStart(2, '0')}:${pick(['00', '15', '30', '45'])}`;
+
+// Persona ficticia y coherente para probar la plataforma. Nunca marca síntomas
+// actuales: eso enviaría el flujo a la pantalla de urgencias.
+function fakeProfile() {
+  const conditions = conditionOptions.filter((option) => option !== 'Ninguna' && Math.random() < 0.25);
+  return {
+    peso: (randomInt(520, 980) / 10).toFixed(1),
+    estatura: String(randomInt(150, 188)),
+    presion: Math.random() < 0.1 ? 'No sé' : `${randomInt(105, 150)}/${randomInt(65, 95)}`,
+    condiciones: conditions.length ? conditions : ['Ninguna'],
+    medicamentos: conditions.length ? pick(profileChoiceOptions.medicamentos.slice(0, 2)) : 'No',
+    antecedentes: pick(profileChoiceOptions.antecedentes),
+    frutas: pick(profileChoiceOptions.frutas),
+    sal: pick(profileChoiceOptions.sal),
+    bebidas: pick(profileChoiceOptions.bebidas),
+    actividad: pick(profileChoiceOptions.actividad),
+    sentado: pick(profileChoiceOptions.sentado),
+    sueno: pick(profileChoiceOptions.sueno),
+    estres: pick(profileChoiceOptions.estres),
+    tabaquismo: pick(profileChoiceOptions.tabaquismo),
+    alcohol: pick(profileChoiceOptions.alcohol),
+    sintomasAhora: ['Ninguno'],
+    sintomasMes: Math.random() < 0.75 ? ['Ninguno'] : [pick(lastMonthSymptoms.filter((option) => option !== 'Ninguno'))],
+    despertar: randomTime(5, 7),
+    acostarse: randomTime(21, 23),
+  };
+}
 
 export function InitialProfilePage() {
   const navigate = useNavigate();
@@ -288,6 +338,14 @@ export function InitialProfilePage() {
         <div className="tv-onboarding-brand"><span className="tv-brand-symbol">♥</span><strong>CuidaCor</strong><small>PASO 3 DE 3</small></div>
         <PageHeading title="Su perfil cardiovascular" description="La plataforma orienta, no diagnostica. Complete los datos que le solicitamos." />
         {loadingProfile && <InfoNotice>Cargando información del perfil…</InfoNotice>}
+        {showDemoTools && (
+          <div className="tv-demo-fill">
+            <SecondaryButton onClick={() => { setData(fakeProfile()); setError(''); }} disabled={loading}>
+              Llenar con una persona de prueba
+            </SecondaryButton>
+            <small className="tv-field-helper">Solo para pruebas: llena todo con datos ficticios al azar (sin síntomas actuales). Revise y pulse «Guardar y continuar».</small>
+          </div>
+        )}
         <form className="tv-form" onSubmit={handleSubmit}>
           <SectionCard>
             <h2>Datos de salud</h2>
@@ -298,21 +356,21 @@ export function InitialProfilePage() {
             {bmi && <div className="tv-bmi-preview"><span>IMC calculado automáticamente</span><strong>{bmi}</strong></div>}
             <TextField label="Presión arterial más reciente" name="presion" value={data.presion} onChange={update('presion')} required placeholder="Ej. 130/85 o No sé" />
             <MultiChoiceField label="¿Un médico le ha dicho que tiene alguna de estas condiciones?" options={conditionOptions} value={data.condiciones} onChange={updateMulti('condiciones')} />
-            <ChoiceField label="¿Toma medicamentos para alguna de esas condiciones?" name="medicamentos" value={data.medicamentos} onChange={(value) => setData((c) => ({ ...c, medicamentos: value }))} options={['Sí, todos los días', 'Sí, pero a veces se me olvidan', 'No']} />
-            <ChoiceField label="¿Su papá, mamá o hermanos tuvieron infarto, enfermedad del corazón o derrame cerebral antes de los 60 años?" name="antecedentes" value={data.antecedentes} onChange={(value) => setData((c) => ({ ...c, antecedentes: value }))} options={['Sí', 'No', 'No sé']} />
+            <ChoiceField label="¿Toma medicamentos para alguna de esas condiciones?" name="medicamentos" value={data.medicamentos} onChange={(value) => setData((c) => ({ ...c, medicamentos: value }))} options={profileChoiceOptions.medicamentos} />
+            <ChoiceField label="¿Su papá, mamá o hermanos tuvieron infarto, enfermedad del corazón o derrame cerebral antes de los 60 años?" name="antecedentes" value={data.antecedentes} onChange={(value) => setData((c) => ({ ...c, antecedentes: value }))} options={profileChoiceOptions.antecedentes} />
           </SectionCard>
 
           <SectionCard>
             <h2>Hábitos</h2>
-            <ChoiceField label="¿Cuántas porciones de frutas y verduras come al día?" name="frutas" value={data.frutas} onChange={(value) => setData((c) => ({ ...c, frutas: value }))} options={['0 a 1', '2 a 4', '5 o más']} />
-            <ChoiceField label="¿Agrega sal a la comida servida o consume embutidos, enlatados o paquetes con frecuencia?" name="sal" value={data.sal} onChange={(value) => setData((c) => ({ ...c, sal: value }))} options={['Casi nunca', 'Algunas veces por semana', 'Todos los días']} />
-            <ChoiceField label="¿Con qué frecuencia toma gaseosas, jugos de caja o bebidas azucaradas?" name="bebidas" value={data.bebidas} onChange={(value) => setData((c) => ({ ...c, bebidas: value }))} options={['Casi nunca', '1 a 3 veces por semana', 'Todos los días']} />
-            <ChoiceField label="¿Cuántos minutos a la semana hace actividad física moderada?" name="actividad" value={data.actividad} onChange={(value) => setData((c) => ({ ...c, actividad: value }))} options={['Menos de 60', 'Entre 60 y 149', '150 o más']} />
-            <ChoiceField label="¿Cuántas horas al día pasa sentado(a)?" name="sentado" value={data.sentado} onChange={(value) => setData((c) => ({ ...c, sentado: value }))} options={['Menos de 6', '6 a 8', 'Más de 8']} />
-            <ChoiceField label="¿Cuántas horas duerme por noche, en promedio?" name="sueno" value={data.sueno} onChange={(value) => setData((c) => ({ ...c, sueno: value }))} options={['Menos de 6', 'Entre 6 y 7', 'Entre 7 y 9', 'Más de 9']} />
-            <ChoiceField label="En las últimas dos semanas, ¿qué tan seguido se ha sentido estresado(a), nervioso(a) o agobiado(a)?" name="estres" value={data.estres} onChange={(value) => setData((c) => ({ ...c, estres: value }))} options={['Nunca o casi nunca', 'Algunos días', 'Casi todos los días']} />
-            <ChoiceField label="¿Fuma cigarrillo o vapeador?" name="tabaquismo" value={data.tabaquismo} onChange={(value) => setData((c) => ({ ...c, tabaquismo: value }))} options={['Nunca he fumado', 'Lo dejé', 'Sí, ocasionalmente', 'Sí, todos los días']} />
-            <ChoiceField label="¿Cuántas veces a la semana toma bebidas alcohólicas?" name="alcohol" value={data.alcohol} onChange={(value) => setData((c) => ({ ...c, alcohol: value }))} options={['Nunca', '1 a 2 veces', '3 o más']} />
+            <ChoiceField label="¿Cuántas porciones de frutas y verduras come al día?" name="frutas" value={data.frutas} onChange={(value) => setData((c) => ({ ...c, frutas: value }))} options={profileChoiceOptions.frutas} />
+            <ChoiceField label="¿Agrega sal a la comida servida o consume embutidos, enlatados o paquetes con frecuencia?" name="sal" value={data.sal} onChange={(value) => setData((c) => ({ ...c, sal: value }))} options={profileChoiceOptions.sal} />
+            <ChoiceField label="¿Con qué frecuencia toma gaseosas, jugos de caja o bebidas azucaradas?" name="bebidas" value={data.bebidas} onChange={(value) => setData((c) => ({ ...c, bebidas: value }))} options={profileChoiceOptions.bebidas} />
+            <ChoiceField label="¿Cuántos minutos a la semana hace actividad física moderada?" name="actividad" value={data.actividad} onChange={(value) => setData((c) => ({ ...c, actividad: value }))} options={profileChoiceOptions.actividad} />
+            <ChoiceField label="¿Cuántas horas al día pasa sentado(a)?" name="sentado" value={data.sentado} onChange={(value) => setData((c) => ({ ...c, sentado: value }))} options={profileChoiceOptions.sentado} />
+            <ChoiceField label="¿Cuántas horas duerme por noche, en promedio?" name="sueno" value={data.sueno} onChange={(value) => setData((c) => ({ ...c, sueno: value }))} options={profileChoiceOptions.sueno} />
+            <ChoiceField label="En las últimas dos semanas, ¿qué tan seguido se ha sentido estresado(a), nervioso(a) o agobiado(a)?" name="estres" value={data.estres} onChange={(value) => setData((c) => ({ ...c, estres: value }))} options={profileChoiceOptions.estres} />
+            <ChoiceField label="¿Fuma cigarrillo o vapeador?" name="tabaquismo" value={data.tabaquismo} onChange={(value) => setData((c) => ({ ...c, tabaquismo: value }))} options={profileChoiceOptions.tabaquismo} />
+            <ChoiceField label="¿Cuántas veces a la semana toma bebidas alcohólicas?" name="alcohol" value={data.alcohol} onChange={(value) => setData((c) => ({ ...c, alcohol: value }))} options={profileChoiceOptions.alcohol} />
           </SectionCard>
 
           <SectionCard>
