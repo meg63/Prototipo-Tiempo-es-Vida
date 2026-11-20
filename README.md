@@ -39,6 +39,34 @@ API local:
 http://localhost:8000/api/health/
 ```
 
+## Modelo ECG
+
+El backend ejecuta el modelo de IA de CuidaCor (CNN 1D entrenada con PTB-XL v1.0.3 a
+100 Hz) cuando un participante carga un ECG en `POST /api/ecg/`. Corre en CPU dentro del
+contenedor `backend` y tarda milisegundos por caso.
+
+- **Entrada:** un `.zip` con el par WFDB del caso asignado (`.hea` + `.dat`): 12
+  derivaciones, 100 Hz, 10 segundos, máximo 5 MB. Ejemplo: `00564_lr.hea` y
+  `00564_lr.dat` de `records100/` de PTB-XL.
+- **Salida en `CasosECG`:** `norm_prob` … `hyp_prob` (puntaje sigmoide 0–1, no calibrado
+  clínicamente), `etiquetas_ia` (superclases que alcanzan su umbral), `umbrales_ia`,
+  `version_modelo`, `tiempo_procesamiento_ms` y `procesado_en`. El estado queda en
+  `COMPLETADO`, o en `ERROR` con `mensaje_error` legible si la señal no es válida
+  (derivación plana, otra frecuencia, derivaciones faltantes…). Un archivo que no es `.zip`
+  o un `.zip` sin su `.dat` se rechaza con 400 sin crear el caso.
+- `prioridad_ia` sigue vacía hasta que el equipo clínico defina la regla.
+- Código: `backend/api/services/ecg_ia/`. Pesos y configuración: `artefactos/`
+  (`model_state_dict.pt`, `inference_config.json`). Para publicar un modelo nuevo basta
+  con reemplazar esos dos archivos por los de la corrida entrenada.
+
+Después de actualizar la rama, reconstruir el backend (instala PyTorch CPU) y migrar:
+
+```powershell
+docker compose up --build -d
+docker compose exec backend python manage.py migrate
+docker compose exec backend python manage.py test api
+```
+
 ## Preparar una configuracion temporal
 
 El archivo `.env` es local y esta excluido por `.gitignore`.

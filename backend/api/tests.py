@@ -133,7 +133,9 @@ class APITiempoEsVidaTests(TestCase):
         self.assertEqual(history.status_code, status.HTTP_200_OK)
         self.assertEqual(len(history.data), 1)
 
-    def test_ecg_upload_is_saved_pending_without_running_ai(self):
+    def test_ecg_upload_rejects_non_zip_without_creating_case(self):
+        # Desde la integración del modelo, el ECG se sube como .zip con el par WFDB.
+        # Los casos con un .zip válido se prueban en test_ecg_ia.py.
         self.aceptar_consentimiento()
         upload = SimpleUploadedFile("caso-prueba.csv", b"contenido-de-prueba", content_type="text/csv")
         response = self.client.post(
@@ -145,9 +147,9 @@ class APITiempoEsVidaTests(TestCase):
             },
             format="multipart",
         )
-        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
-        self.assertEqual(response.data["estado_procesamiento"], "PENDIENTE")
-        self.assertIsNone(response.data["norm_prob"])
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.data)
+        self.assertIn("archivo_ecg", response.data)
+        self.assertEqual(CasosECG.objects.count(), 0)
 
     def test_recommendation_display_and_clarity(self):
         self.aceptar_consentimiento()

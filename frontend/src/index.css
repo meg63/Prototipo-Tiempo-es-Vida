@@ -442,3 +442,18 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .tv-logout-professional { width: auto; margin: 0 0 0 auto; }
   .tv-professional-user { display: none; }
 }
+
+/* Resultado del modelo ECG (puntaje 0-100 con línea de alerta por superclase) */
+.tv-ecg-progress { margin-top: 12px; }
+.tv-ecg-summary { margin: 0 0 6px; color: var(--tv-ink); font-size: 15px; font-weight: 800; line-height: 1.4; }
+.tv-ecg-score-row { align-items: center; }
+.tv-ecg-score-label { flex: 1 1 auto; min-width: 0; }
+.tv-ecg-track { position: relative; height: 10px; margin-top: 10px; border-radius: 0 4px 4px 0; background: var(--tv-mint); }
+.tv-ecg-fill { position: absolute; inset: 0 auto 0 0; min-width: 2px; border-radius: 0 4px 4px 0; background: var(--tv-turquoise); }
+.tv-ecg-marker { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: var(--tv-ink); }
+.tv-ecg-score-value { display: grid; flex: 0 0 96px; gap: 6px; justify-items: end; }
+.tv-ecg-score-value .tv-result-value { color: var(--tv-ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+.tv-ecg-score-value small { color: var(--tv-muted); font-size: 11px; font-weight: 600; }
+.tv-ecg-flag { padding: 4px 9px; border: 1px solid var(--tv-line); border-radius: 99px; color: var(--tv-muted); font-size: 10px; font-weight: 800; white-space: nowrap; }
+.tv-ecg-flag.is-flagged { border-color: var(--tv-turquoise-dark); color: var(--tv-turquoise-dark); background: var(--tv-mint); }
+.tv-ecg-meta { margin: 8px 2px 0; font-size: 11px; }

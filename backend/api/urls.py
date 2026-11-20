@@ -23,7 +23,7 @@ urlpatterns = [
     path("habitos/<int:pk>/", views.RegistroDiarioDetalleAPIView.as_view(), name="api-habitos-detalle"),
     path("evaluaciones/", views.EvaluacionesPeriodicasAPIView.as_view(), name="api-evaluaciones"),
 
-    # ECG del paciente. Esta API guarda el archivo, no ejecuta IA todavía.
+    # ECG del paciente: guarda el .zip WFDB y ejecuta el modelo de IA (services/ecg_ia).
     path("ecg/", views.CasosECGPacienteAPIView.as_view(), name="api-ecg-lista-crear"),
     path("ecg/<int:pk>/", views.CasoECGDetallePacienteAPIView.as_view(), name="api-ecg-detalle"),
 

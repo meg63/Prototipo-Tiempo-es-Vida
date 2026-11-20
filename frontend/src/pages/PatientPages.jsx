@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ChoiceField,
   EmptyState,
@@ -9,6 +9,7 @@ import {
   SectionCard,
   SecondaryButton,
   SelectField,
+  TextField,
 } from '../components/Shared';
 import { api, getApiErrorMessage, getStoredUser } from '../services/api';
 import {
@@ -515,81 +516,209 @@ export function RecommendationsPage() {
   );
 }
 
+// Mensaje de un error de carga: prioriza el texto del campo que falló.
+function ecgUploadErrorMessage(error) {
+  const data = error?.data;
+  for (const field of ['archivo_ecg', 'caso_asignado', 'confirma_prueba']) {
+    const value = data?.[field];
+    if (value) return Array.isArray(value) ? value.join(' ') : String(value);
+  }
+  return getApiErrorMessage(error);
+}
+
+const ecgStatusLabels = {
+  PENDIENTE: 'Pendiente',
+  VALIDANDO: 'Validando',
+  PROCESANDO: 'Procesando',
+  COMPLETADO: 'Completado',
+  ERROR: 'Con error',
+};
+
+function formatEcgDate(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 export function EcgUploadPage() {
+  const navigate = useNavigate();
   const [file, setFile] = useState(null);
+  const [assignedCase, setAssignedCase] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [message, setMessage] = useState('');
-  function handleSubmit(event) {
+  const [sending, setSending] = useState(false);
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    let active = true;
+    api.ecg.list().then((items) => { if (active) setHistory(items || []); }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  async function handleSubmit(event) {
     event.preventDefault();
-    if (!file || !confirmed) {
-      setMessage('Seleccione un archivo y confirme que corresponde a un caso de prueba.');
+    if (sending) return;
+    if (!assignedCase.trim() || !file || !confirmed) {
+      setMessage('Escriba el código del caso, seleccione el archivo .zip y confirme que corresponde a un caso de prueba.');
       return;
     }
-    setMessage('Archivo seleccionado correctamente. La carga y el procesamiento ECG se conectarán en la siguiente etapa. No se ha generado ningún resultado.');
+    if (!file.name.toLowerCase().endsWith('.zip')) {
+      setMessage('Formato no permitido. Seleccione el archivo .zip que contiene el .hea y el .dat del ECG.');
+      return;
+    }
+    setSending(true);
+    setMessage('');
+    try {
+      const caso = await api.ecg.upload({ file, casoAsignado: assignedCase.trim() });
+      navigate(`/ecg/resultado?id=${caso.id}`);
+    } catch (error) {
+      setMessage(ecgUploadErrorMessage(error));
+      setSending(false);
+    }
   }
+
   return (
     <>
       <PageHeading title="Cargar ECG" description="Seleccione el caso de prueba asignado por el equipo." />
       <form className="tv-form" onSubmit={handleSubmit}>
         <SectionCard>
           <h2>Caso asignado</h2>
-          <div className="tv-assigned-case"><span className="tv-status-dot" /> <div><strong>Caso asignado por el equipo</strong><small>El listado se cargará desde el backend cuando se conecte esta pantalla.</small></div></div>
+          <TextField
+            label="Código del caso asignado"
+            name="ecg-case"
+            value={assignedCase}
+            onChange={(e) => { setAssignedCase(e.target.value); setMessage(''); }}
+            placeholder="Por ejemplo, PTBXL-564"
+            required
+            helper="Es el código del caso público de PTB-XL que le entregó el equipo."
+          />
           <label className="tv-field" htmlFor="ecg-file">
-            <span className="tv-field-label">Archivo del ECG de prueba <span className="tv-required">*</span></span>
-            <input id="ecg-file" type="file" onChange={(e) => { setFile(e.target.files?.[0] || null); setMessage(''); }} className="tv-file-input" />
-            <small className="tv-field-helper">La base funcional define una señal digital compatible con PTB-XL. El formato y tamaño máximo están pendientes de confirmación técnica.</small>
+            <span className="tv-field-label">Archivo del ECG de prueba (.zip) <span className="tv-required">*</span></span>
+            <input id="ecg-file" type="file" accept=".zip,application/zip" disabled={sending} onChange={(e) => { setFile(e.target.files?.[0] || null); setMessage(''); }} className="tv-file-input" />
+            <small className="tv-field-helper">Un .zip con los dos archivos WFDB del caso: el encabezado .hea y la señal .dat (12 derivaciones, 100 Hz, 10 segundos). Máximo 5 MB.</small>
           </label>
           {file && <div className="tv-file-selected"><strong>{file.name}</strong><span>{(file.size / 1024).toFixed(1)} KB</span></div>}
-          <label className="tv-check-row tv-check-large"><input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} /><span>Entiendo que es un caso de prueba y no mi propio electrocardiograma.</span></label>
-          <PrimaryButton type="submit">Enviar a análisis</PrimaryButton>
-          {message && <InfoNotice tone={file && confirmed ? 'warning' : 'danger'}>{message}</InfoNotice>}
+          <label className="tv-check-row tv-check-large"><input type="checkbox" checked={confirmed} disabled={sending} onChange={(e) => setConfirmed(e.target.checked)} /><span>Entiendo que es un caso de prueba y no mi propio electrocardiograma.</span></label>
+          <PrimaryButton type="submit" disabled={sending}>{sending ? 'Analizando el ECG…' : 'Enviar a análisis'}</PrimaryButton>
+          {sending && (
+            <div className="tv-ecg-progress" aria-live="polite">
+              <div className="tv-process-step"><span className="tv-process-number">1</span><div><strong>Validación del archivo</strong><p>Formato, integridad y 12 derivaciones.</p></div></div>
+              <div className="tv-process-step"><span className="tv-process-number">2</span><div><strong>Procesamiento con el modelo</strong><p>Suele tardar unos segundos (meta: menos de 3 minutos).</p></div></div>
+            </div>
+          )}
+          {message && <InfoNotice tone="danger">{message}</InfoNotice>}
         </SectionCard>
       </form>
-      <InfoNotice tone="warning">El modelo de IA no está integrado. Esta pantalla todavía no realiza análisis clínicos.</InfoNotice>
-      <div className="tv-button-row"><SecondaryButton to="/ecg/procesando">Ver pantalla de procesamiento</SecondaryButton><SecondaryButton to="/ecg/resultado">Ver estructura del resultado</SecondaryButton></div>
+      <InfoNotice tone="warning">El resultado es experimental y orientativo: el modelo se entrenó con casos públicos de PTB-XL y no reemplaza la valoración de un profesional de la salud.</InfoNotice>
+      {history.length > 0 && (
+        <>
+          <h2 className="tv-subheading">Mis ECG analizados</h2>
+          <div className="tv-result-list">
+            {history.map((item) => (
+              <SectionCard key={item.id} className="tv-result-row">
+                <div><strong>{item.caso_asignado || `ECG ${item.id}`}</strong><p>{formatEcgDate(item.fecha_carga)}</p></div>
+                <Link to={`/ecg/resultado?id=${item.id}`} className="tv-result-value">{ecgStatusLabels[item.estado_procesamiento] || item.estado_procesamiento} →</Link>
+              </SectionCard>
+            ))}
+          </div>
+        </>
+      )}
     </>
   );
 }
 
-const ecgClasses = [
-  ['NORM', 'Patrón sin hallazgos destacados'],
-  ['MI', 'Patrón asociado a infarto'],
-  ['STTC', 'Cambios en el segmento ST/T'],
-  ['CD', 'Alteración en la conducción eléctrica'],
-  ['HYP', 'Patrón de hipertrofia'],
-];
-
+// El análisis es síncrono: la carga muestra su propio progreso y lleva al resultado.
 export function EcgProcessingPage() {
-  return (
-    <>
-      <PageHeading eyebrow="ESTADO DEL ECG" title="Procesamiento y validación" description="Esta pantalla representa los estados previstos para el caso asignado." />
-      <SectionCard>
-        <div className="tv-process-step"><span className="tv-process-number">1</span><div><strong>Validación del archivo</strong><p>Comprobar formato, integridad y legibilidad.</p><span className="tv-status-pill">Pendiente de backend</span></div></div>
-        <div className="tv-process-step"><span className="tv-process-number">2</span><div><strong>Procesamiento del ECG</strong><p>Enviar la señal al servicio que ejecutará el modelo.</p><span className="tv-status-pill">Pendiente de integración</span></div></div>
-        <div className="tv-process-step"><span className="tv-process-number">3</span><div><strong>Resultado</strong><p>Mostrar una respuesta por superclase cuando el servicio devuelva los datos.</p><span className="tv-status-pill">Sin resultado</span></div></div>
-      </SectionCard>
-      <h2 className="tv-subheading">Mensajes de error que debe manejar el backend</h2>
-      <div className="tv-error-list">
-        <InfoNotice tone="danger">Formato no permitido: informe qué formatos acepta el sistema.</InfoNotice>
-        <InfoNotice tone="danger">Archivo ilegible o incompleto: permita seleccionar otro archivo.</InfoNotice>
-        <InfoNotice tone="warning">Error de conexión: indique que el archivo no pudo enviarse.</InfoNotice>
-        <InfoNotice tone="warning">Tiempo de respuesta excedido: permita reintentar o volver a la carga.</InfoNotice>
-      </div>
-      <InfoNotice>La meta de respuesta definida para el ECG es menor a 3 minutos, pero todavía no hay un servicio integrado con el modelo.</InfoNotice>
-      <SecondaryButton to="/ecg">Elegir otro archivo</SecondaryButton>
-    </>
-  );
+  return <Navigate to="/ecg" replace />;
+}
+
+function lowerFirst(text) {
+  return /^[A-Z]{2}/.test(text) ? text : text.charAt(0).toLowerCase() + text.slice(1);
+}
+
+function joinNames(names) {
+  if (names.length <= 1) return names[0] || '';
+  return `${names.slice(0, -1).join(', ')} y ${names[names.length - 1]}`;
+}
+
+function ecgSummary(rows) {
+  const flagged = rows.filter((row) => row.activada);
+  const others = flagged.filter((row) => row.superclase !== 'NORM');
+  const names = joinNames(others.map((row) => lowerFirst(row.nombre_orientacion)));
+  if (flagged.length === 0) return 'Ningún puntaje alcanzó su línea de alerta: el modelo no se inclina por ninguna categoría.';
+  if (others.length === 0) return 'El modelo no marcó patrones de alteración en este trazado.';
+  if (flagged.length > others.length) return `Resultado mixto: el modelo marcó un patrón sin hallazgos destacados y también ${names}.`;
+  return `El modelo marcó para revisión: ${names}.`;
 }
 
 export function EcgResultPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const caseId = searchParams.get('id');
+  const [state, setState] = useState({ loading: true, error: '', caso: null });
+
+  useEffect(() => {
+    let active = true;
+    const load = caseId ? api.ecg.get(caseId) : api.ecg.list().then((items) => items?.[0] || null);
+    load
+      .then((caso) => { if (active) setState({ loading: false, error: '', caso }); })
+      .catch((error) => { if (active) setState({ loading: false, error: getApiErrorMessage(error), caso: null }); });
+    return () => { active = false; };
+  }, [caseId]);
+
+  const { loading, error, caso } = state;
+  const rows = caso?.resultados_por_superclase || [];
+
   return (
     <>
-      <PageHeading eyebrow="PANTALLA DE RESULTADO" title="Resultado experimental" description="Esta es la estructura visual prevista para mostrar las cinco superclases de PTB-XL." />
-      <div className="tv-result-list">
-        {ecgClasses.map(([code, label]) => <SectionCard key={code} className="tv-result-row"><div><strong>{code}</strong><p>{label}</p></div><span className="tv-result-value">Pendiente</span></SectionCard>)}
-      </div>
-      <InfoNotice tone="warning">No hay probabilidades disponibles. Los valores aparecerán únicamente cuando el backend reciba la salida del modelo. El resultado será experimental, no un diagnóstico.</InfoNotice>
+      <PageHeading eyebrow="RESULTADO DEL ECG" title="Resultado experimental" description={caso ? `Caso ${caso.caso_asignado} · ${formatEcgDate(caso.fecha_carga)}` : 'Lectura del modelo para las cinco superclases de PTB-XL.'} />
+      {loading && <InfoNotice>Cargando el resultado…</InfoNotice>}
+      {error && <InfoNotice tone="danger">{error}</InfoNotice>}
+      {!loading && !error && !caso && (
+        <EmptyState title="Aún no ha cargado un ECG" description="Cargue el caso de prueba asignado por el equipo para ver aquí la lectura del modelo." action={<SecondaryButton to="/ecg">Cargar ECG</SecondaryButton>} />
+      )}
+
+      {caso?.estado_procesamiento === 'ERROR' && (
+        <InfoNotice tone="danger"><strong>No fue posible analizar este ECG.</strong> {caso.mensaje_error}</InfoNotice>
+      )}
+      {caso && !['COMPLETADO', 'ERROR'].includes(caso.estado_procesamiento) && (
+        <InfoNotice tone="warning">Este ECG está en estado «{ecgStatusLabels[caso.estado_procesamiento] || caso.estado_procesamiento}». Vuelva a intentarlo en unos minutos.</InfoNotice>
+      )}
+
+      {caso?.estado_procesamiento === 'COMPLETADO' && (
+        <>
+          <SectionCard>
+            <p className="tv-ecg-summary">{ecgSummary(rows)}</p>
+            <p className="tv-muted">Cada categoría tiene un puntaje de 0 a 100 y una línea de alerta. Si el puntaje la alcanza, la categoría queda marcada. Un ECG puede tener varias categorías marcadas, o ninguna.</p>
+          </SectionCard>
+          <div className="tv-result-list">
+            {rows.map((row) => {
+              const score = Math.round((row.probabilidad ?? 0) * 100);
+              const threshold = row.umbral == null ? null : Math.round(row.umbral * 100);
+              return (
+                <SectionCard key={row.superclase} className="tv-result-row tv-ecg-score-row">
+                  <div className="tv-ecg-score-label">
+                    <strong>{row.nombre_orientacion}</strong>
+                    <p>{row.superclase}{threshold != null && ` · línea de alerta ${threshold}`}</p>
+                    <div className="tv-ecg-track" aria-hidden="true">
+                      <span className="tv-ecg-fill" style={{ width: `${score}%` }} />
+                      {threshold != null && <span className="tv-ecg-marker" style={{ left: `${threshold}%` }} />}
+                    </div>
+                  </div>
+                  <div className="tv-ecg-score-value">
+                    <span className="tv-result-value">{score}<small> /100</small></span>
+                    <span className={`tv-ecg-flag${row.activada ? ' is-flagged' : ''}`}>{row.activada ? '✓ Marcado' : 'No marcado'}</span>
+                  </div>
+                </SectionCard>
+              );
+            })}
+          </div>
+          <p className="tv-muted tv-ecg-meta">
+            Modelo {caso.version_modelo}{caso.tiempo_procesamiento_ms != null && ` · analizado en ${(caso.tiempo_procesamiento_ms / 1000).toLocaleString('es-CO', { maximumFractionDigits: 2 })} s`}
+          </p>
+        </>
+      )}
+
+      {caso && <InfoNotice tone="warning">{caso.aviso_limitaciones} El puntaje no es una probabilidad clínica. Si tiene síntomas, consulte a un profesional de la salud.</InfoNotice>}
       <PrimaryButton onClick={() => navigate('/consejos')}>Ver recomendaciones</PrimaryButton>
       <SecondaryButton to="/ecg">Cargar otro ECG</SecondaryButton>
     </>

@@ -189,6 +189,23 @@ export const api = {
       });
     },
   },
+  ecg: {
+    list() {
+      return request('/ecg/');
+    },
+    get(id) {
+      return request(`/ecg/${encodeURIComponent(id)}/`);
+    },
+    // Sube un .zip con el par WFDB (.hea + .dat). Django ejecuta el modelo en la misma
+    // solicitud y devuelve el caso COMPLETADO o en ERROR con mensaje_error.
+    upload({ file, casoAsignado }) {
+      const form = new FormData();
+      form.append('archivo_ecg', file);
+      form.append('caso_asignado', casoAsignado);
+      form.append('confirma_prueba', 'true');
+      return request('/ecg/', { method: 'POST', body: form });
+    },
+  },
 };
 
 export function getApiErrorMessage(error) {

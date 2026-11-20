@@ -756,6 +756,22 @@ class CasosECG(models.Model):
         null=True, blank=True, validators=[MinValueValidator(0.0), MaxValueValidator(1.0)]
     )
 
+    # Salida del modelo de IA (api/services/ecg_ia). Los *_prob guardan el puntaje
+    # sigmoide de cada superclase; no está calibrado como probabilidad clínica.
+    etiquetas_ia = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="Superclases cuyo puntaje alcanzó el umbral del modelo.",
+    )
+    umbrales_ia = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Umbral por superclase usado para activar las etiquetas.",
+    )
+    version_modelo = models.CharField(max_length=50, blank=True, default="")
+    tiempo_procesamiento_ms = models.PositiveIntegerField(null=True, blank=True)
+    procesado_en = models.DateTimeField(null=True, blank=True)
+
     estado_procesamiento = models.CharField(
         max_length=15,
         choices=EstadoProcesamientoECG.choices,
@@ -806,7 +822,7 @@ class CasosECG(models.Model):
         errores = {}
         clases_validas = set(self.NOMBRES_SUPERCLASE.keys())
 
-        for campo in ("etiqueta_referencia", "superclases_modificadas"):
+        for campo in ("etiqueta_referencia", "superclases_modificadas", "etiquetas_ia"):
             valores = getattr(self, campo, None)
             if not isinstance(valores, list):
                 errores[campo] = "Debe enviarse una lista de superclases."
@@ -857,11 +873,15 @@ class CasosECG(models.Model):
             "CD": self.cd_prob,
             "HYP": self.hyp_prob,
         }
+        etiquetas = set(self.etiquetas_ia or [])
+        umbrales = self.umbrales_ia or {}
         return [
             {
                 "superclase": codigo,
                 "nombre_orientacion": self.NOMBRES_SUPERCLASE[codigo],
                 "probabilidad": probabilidades[codigo],
+                "umbral": umbrales.get(codigo),
+                "activada": codigo in etiquetas,
             }
             for codigo in self.NOMBRES_SUPERCLASE
         ]

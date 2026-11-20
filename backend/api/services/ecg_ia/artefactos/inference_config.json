@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0",
+  "model_version": "baseline-001",
+  "created_at": "2026-11-14T03:51:48+00:00",
+  "weights_file": "model_state_dict.pt",
+  "weights_format": "torch state_dict",
+  "architecture": {
+    "name": "ECGCNN1D",
+    "in_channels": 12,
+    "n_classes": 5,
+    "channels": [
+      32,
+      64,
+      128
+    ],
+    "kernel_sizes": [
+      7,
+      5,
+      3
+    ],
+    "pool_sizes": [
+      2,
+      2,
+      0
+    ],
+    "dropout": 0.2
+  },
+  "sample_rate_hz": 100,
+  "n_samples": 1000,
+  "duration_s": 10,
+  "units": "mV",
+  "lead_order": [
+    "I",
+    "II",
+    "III",
+    "aVR",
+    "aVL",
+    "aVF",
+    "V1",
+    "V2",
+    "V3",
+    "V4",
+    "V5",
+    "V6"
+  ],
+  "class_order": [
+    "NORM",
+    "MI",
+    "STTC",
+    "CD",
+    "HYP"
+  ],
+  "normalization": {
+    "mean": [
+      -0.001746856281213111,
+      -0.0015210192347376598,
+      0.000225774462617226,
+      0.0016164341634347336,
+      -0.0009320963228724691,
+      -0.0006251773819991541,
+      0.00017729541398996587,
+      -0.0009520664534492267,
+      -0.0015649604591961282,
+      -0.0013574172373915143,
+      -0.0007998204526047568,
+      -0.0024244740464590786
+    ],
+    "std": [
+      0.16001217069095391,
+      0.1592315819466315,
+      0.1599763352059961,
+      0.13814883769273217,
+      0.1387701762818536,
+      0.1379805082951919,
+      0.23435436257723066,
+      0.33422314060773467,
+      0.32847405900856697,
+      0.292768936544573,
+      0.2720774165672007,
+      0.28097572021473616
+    ],
+    "std_eps": 1e-06,
+    "formula": "(x - mean) / max(std, std_eps)"
+  },
+  "output_activation": "sigmoid",
+  "decision_rule": "score >= threshold",
+  "thresholds": {
+    "NORM": 0.5626817345619202,
+    "MI": 0.4640295207500458,
+    "STTC": 0.7230862975120544,
+    "CD": 0.7290632128715515,
+    "HYP": 0.7360125184059143
+  },
+  "threshold_strategy": {
+    "method": "max F1 por clase sobre puntajes únicos de validación",
+    "tie_break": "menor umbral",
+    "split": "val (strat_fold 9)",
+    "details": {
+      "NORM": {
+        "threshold": 0.5626817345619202,
+        "f1": 0.8622575832918946,
+        "evaluable": true,
+        "reason": null,
+        "n_candidates": 2146
+      },
+      "MI": {
+        "threshold": 0.4640295207500458,
+        "f1": 0.7509025270758123,
+        "evaluable": true,
+        "reason": null,
+        "n_candidates": 2146
+      },
+      "STTC": {
+        "threshold": 0.7230862975120544,
+        "f1": 0.7632058287795993,
+        "evaluable": true,
+        "reason": null,
+        "n_candidates": 2146
+      },
+      "CD": {
+        "threshold": 0.7290632128715515,
+        "f1": 0.7577639751552795,
+        "evaluable": true,
+        "reason": null,
+        "n_candidates": 2146
+      },
+      "HYP": {
+        "threshold": 0.7360125184059143,
+        "f1": 0.6104129263913824,
+        "evaluable": true,
+        "reason": null,
+        "n_candidates": 2146
+      }
+    }
+  },
+  "selected_epoch": 15,
+  "val_macro_auroc": 0.9238014931717116,
+  "publishable": true,
+  "blocked_reasons": [],
+  "disclaimer": "Puntajes experimentales sin calibración clínica. Orientación académica; no sustituye la valoración médica."
+}

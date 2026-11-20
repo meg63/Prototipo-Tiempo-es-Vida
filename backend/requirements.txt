@@ -2,3 +2,9 @@ Django==5.0.3
 djangorestframework==3.15.1
 psycopg2-binary==2.9.9
 django-cors-headers==4.3.1
+
+# Modelo ECG (api/services/ecg_ia). PyTorch solo CPU para mantener la imagen liviana.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.14.1+cpu
+numpy==2.4.6
+wfdb==4.3.1

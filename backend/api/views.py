@@ -14,6 +14,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+from .services.ecg_ia import procesar_caso
 from .services.rules_engine import evaluar_habitos_y_sintomas
 
 
@@ -335,7 +336,7 @@ class EvaluacionesPeriodicasAPIView(VistaAutenticada):
 
 
 # -----------------------------------------------------------------------------
-# Carga y consulta de ECG (sin ejecutar todavía la IA)
+# Carga, análisis con el modelo de IA y consulta de ECG
 # -----------------------------------------------------------------------------
 
 class CasosECGPacienteAPIView(VistaAutenticada):
@@ -350,6 +351,9 @@ class CasosECGPacienteAPIView(VistaAutenticada):
         serializer = ResultadoECGSerializer(data=request.data, context={"request": request})
         serializer.is_valid(raise_exception=True)
         caso = serializer.save(paciente=request.user)
+        # Inferencia síncrona: el modelo tarda milisegundos en CPU (meta del piloto < 3 min).
+        # Si el ECG no es válido, el caso queda en ERROR con un mensaje para el participante.
+        procesar_caso(caso)
         return Response(
             ResultadoECGSerializer(caso, context={"request": request}).data,
             status=status.HTTP_201_CREATED,

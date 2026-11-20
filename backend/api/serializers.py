@@ -13,8 +13,13 @@ from .models import (
     RecomendacionMostrada,
     RegistroDiario,
 )
+from .services.ecg_ia import ErrorPaquete, inspeccionar_zip
 
 User = get_user_model()
+
+CAMPOS_RESULTADO_IA = (
+    "etiquetas_ia", "umbrales_ia", "version_modelo", "tiempo_procesamiento_ms", "procesado_en",
+)
 
 
 class UsuarioPublicoSerializer(serializers.ModelSerializer):
@@ -278,16 +283,30 @@ class ResultadoECGSerializer(serializers.ModelSerializer):
             "id", "caso_asignado", "archivo_ecg", "confirma_prueba", "fecha_carga",
             "estado_procesamiento", "mensaje_error", "estado_revision", "prioridad_ia",
             "norm_prob", "mi_prob", "sttc_prob", "cd_prob", "hyp_prob",
+            *CAMPOS_RESULTADO_IA,
             "resultados_por_superclase", "aviso_limitaciones",
         )
         read_only_fields = (
             "id", "fecha_carga", "estado_procesamiento", "mensaje_error", "estado_revision",
             "prioridad_ia", "norm_prob", "mi_prob", "sttc_prob", "cd_prob", "hyp_prob",
+            *CAMPOS_RESULTADO_IA,
             "resultados_por_superclase", "aviso_limitaciones",
         )
 
     def get_resultados_por_superclase(self, obj):
         return obj.obtener_resultados_por_superclase()
+
+    def validate_archivo_ecg(self, archivo):
+        """Acepta un .zip con el par WFDB (.hea + .dat) de un caso de prueba PTB-XL."""
+        if not archivo.name.lower().endswith(".zip"):
+            raise serializers.ValidationError(
+                "Formato no permitido. Suba un archivo .zip que contenga el .hea y el .dat del ECG."
+            )
+        try:
+            inspeccionar_zip(archivo)
+        except ErrorPaquete as exc:
+            raise serializers.ValidationError(exc.mensaje) from exc
+        return archivo
 
     def validate(self, attrs):
         if not attrs.get("confirma_prueba", getattr(self.instance, "confirma_prueba", False)):
@@ -306,8 +325,9 @@ class CasoECGProfesionalSerializer(serializers.ModelSerializer):
         model = CasosECG
         fields = (
             "id", "paciente_nombre", "codigo_participante", "caso_asignado", "archivo_ecg",
-            "fecha_carga", "estado_procesamiento", "estado_revision", "prioridad_ia",
+            "fecha_carga", "estado_procesamiento", "mensaje_error", "estado_revision", "prioridad_ia",
             "norm_prob", "mi_prob", "sttc_prob", "cd_prob", "hyp_prob",
+            *CAMPOS_RESULTADO_IA,
             "resultados_por_superclase", "etiqueta_referencia", "superclases_modificadas",
             "notas_medico", "revisado_por", "fecha_revision", "tiempo_revision_seg",
             "aviso_limitaciones",
