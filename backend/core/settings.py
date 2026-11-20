@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/6.1/ref/settings/
 """
 
+import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -20,12 +21,18 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/6.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-j9jo+jvpn=k85$x5b3@lck@+z1b1-+&-#b+)9$8r7o_j36mwoq'
+SECRET_KEY = os.getenv(
+    'DJANGO_SECRET_KEY',
+    'django-insecure-j9jo+jvpn=k85$x5b3@lck@+z1b1-+&-#b+)9$8r7o_j36mwoq',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv('DJANGO_DEBUG', 'True').lower() in ('1', 'true', 'yes')
 
-ALLOWED_HOSTS = []
+allowed_hosts = os.getenv('DJANGO_ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [host.strip() for host in allowed_hosts.split(',') if host.strip()]
+if DEBUG:
+    ALLOWED_HOSTS = list(dict.fromkeys(ALLOWED_HOSTS + ['localhost', '127.0.0.1', '[::1]']))
 
 
 # Application definition
@@ -153,7 +160,12 @@ REST_FRAMEWORK = {
 }
 
 
-CORS_ALLOWED_ORIGINS = ["http://localhost:5173"]
+cors_allowed_origins = os.getenv('DJANGO_CORS_ALLOWED_ORIGINS', '')
+CORS_ALLOWED_ORIGINS = [
+    origin.strip().rstrip('/')
+    for origin in cors_allowed_origins.split(',')
+    if origin.strip()
+] + ["http://localhost:5173"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
